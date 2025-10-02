@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
-// import Navbar from "./Components/";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",

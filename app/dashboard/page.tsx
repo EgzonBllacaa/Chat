@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-// import Navbar from "../Components/Navbar";
 import Link from "next/link";
 
 const DashboardPage = () => {
