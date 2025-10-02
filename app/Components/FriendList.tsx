@@ -16,7 +16,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import Snackbar from "@mui/material/Snackbar";
-import MuiAlert, { AlertColor } from "@mui/material/Alert";
+import MuiAlert, { AlertColor, AlertProps } from "@mui/material/Alert";
 import { forwardRef } from "react";
 
 // Define TypeScript types
@@ -78,9 +78,9 @@ export default function FriendsList({
   const [snackbarSeverity, setSnackbarSeverity] =
     useState<AlertColor>("success");
 
-  const Alert = forwardRef(function Alert(
-    props: any,
-    ref: Ref<HTMLDivElement>
+  const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
+    props,
+    ref
   ) {
     return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
   });
