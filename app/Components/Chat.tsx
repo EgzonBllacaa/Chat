@@ -9,6 +9,7 @@ import {
   onSnapshot,
   query,
   where,
+  Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import ChatUi from "./ChatUi";
@@ -19,83 +20,108 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { FaBars } from "react-icons/fa";
 
-const Chat = () => {
+// Type definitions
+type FirestoreUser = {
+  uid: string;
+  displayName: string;
+  email?: string;
+  photoURL?: string;
+  createdAt?: Timestamp;
+};
+
+type Friend = FirestoreUser & {
+  id: string;
+  friendshipId: string;
+};
+
+const Chat: React.FC = () => {
   const { user } = useAuth();
-  const [selectedFriend, setSelectedFriend] = useState(null);
-  const [friends, setFriends] = useState<
-    { id: string; friendshipId: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("friends");
-  const [isOpen, setIsOpen] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!user) return setLoading(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"friends" | "requests">("friends");
+  const [isOpen, setIsOpen] = useState(true);
 
-    // Finding all my friends in one group
+  // Fetch friends
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const q = query(
       collection(db, "friendships"),
       where("users", "array-contains", user.uid),
       where("status", "==", "accepted")
     );
+
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
-        const friendsData = [];
+        const friendsData: Friend[] = [];
 
         for (const snapshotDoc of snapshot.docs) {
           const friendId = snapshotDoc
             .data()
             .users.find((id: string) => id !== user.uid);
+
+          if (!friendId) continue;
+
           const friendDoc = await getDoc(doc(db, "users", friendId));
+
           if (friendDoc.exists()) {
+            const friendData = friendDoc.data() as FirestoreUser;
             friendsData.push({
               id: friendId,
-              ...friendDoc.data(),
+              uid: friendId,
+              displayName: friendData.displayName,
+              email: friendData.email,
+              photoURL: friendData.photoURL,
               friendshipId: snapshotDoc.id,
             });
           }
         }
-        console.log(friendsData);
+
         setFriends(friendsData);
         setLoading(false);
       },
       (error) => {
-        console.error("Error fetching friends: ", error);
+        console.error("Error fetching friends:", error);
         setLoading(false);
       }
     );
+
     return () => unsubscribe();
-  }, [user, setFriends]);
+  }, [user]);
 
-  if (loading) return <span>Loading...</span>;
-
+  // Sign out
   const handleSignOut = async () => {
     try {
       await signOut(auth);
     } catch (error) {
-      console.log(error);
+      console.error(error);
     } finally {
       router.push("/signup");
     }
   };
 
+  if (loading) return <span>Loading...</span>;
+
   return (
-    <div
-      className={`relative 
-        flex flex-col md:flex-row
-       w-full  items-start bg-white`}
-    >
-      {/* Sidebar */}
+    <div className="relative flex flex-col md:flex-row w-full items-start bg-white">
+      {/* Sidebar toggle button */}
       <button
-        className=" absolute top-0 cursor-pointer pt-7 pl-5"
+        className="absolute top-0 cursor-pointer pt-7 pl-5"
         onClick={() => setIsOpen((prev) => !prev)}
       >
         <FaBars className={`${isOpen ? "text-white" : "text-black"}`} />
       </button>
+
+      {/* Sidebar */}
       {isOpen && (
-        <div className="sm:md:w-2/6 h-full w-full bg-zinc-800 text-white  border-r ">
+        <div className="sm:md:w-2/6 h-full w-full bg-zinc-800 text-white border-r">
           <div className="p-4 border-b border-b-zinc-500 pl-12 flex flex-row justify-between">
             <div>
               <h1 className="text-xl font-bold text-zinc-200">Chat App</h1>
@@ -104,8 +130,8 @@ const Chat = () => {
               </p>
             </div>
             <div className="flex flex-wrap flex-col justify-center items-center md:flex-row gap-2 md:items-center">
-              <Link href={"/dashboard"}>
-                <Button className="!bg-transparent text-zinc-100 font-medium border-b border-zinc-500 hover:border-r hover:border-l hover:rounded hover:shadow-zinc-300  hover:shadow-2xs rounded-none  ">
+              <Link href="/dashboard">
+                <Button className="!bg-transparent text-zinc-100 font-medium border-b border-zinc-500 hover:border-r hover:border-l hover:rounded hover:shadow-zinc-300 hover:shadow-2xs rounded-none">
                   Dashboard
                 </Button>
               </Link>
@@ -117,6 +143,8 @@ const Chat = () => {
               </button>
             </div>
           </div>
+
+          {/* Tabs */}
           <div className="flex flex-col lg:flex-row border-b border-zinc-500">
             <button
               className={`flex-1 p-3 cursor-pointer ${
@@ -150,11 +178,11 @@ const Chat = () => {
         </div>
       )}
 
-      {/* Chat Area */}
+      {/* Chat area */}
       <div
         className={`flex-1 ${
           isOpen ? "hidden" : "flex"
-        }  sm:flex w-full flex-col h-full `}
+        } sm:flex w-full flex-col h-full`}
       >
         {selectedFriend ? (
           <ChatUi friend={selectedFriend} />
